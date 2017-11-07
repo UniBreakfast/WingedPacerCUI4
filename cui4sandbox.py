@@ -13,4 +13,3 @@ Board(c, 4, 25, 12, 19, TL_, BK, 'Teal Board')
 
 
 c()
-pass

@@ -11,5 +11,4 @@ Board(c, background_color=OL_)
 c.sbrd = c.brds[0]
 Board(c, 4, 25, 12, 19, TL_, BK, 'Teal Board')
 
-
 c()

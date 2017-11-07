@@ -1,0 +1,15 @@
+#!wing
+#!version=6.0
+##################################################################
+# Wing IDE project file                                          #
+##################################################################
+[project attributes]
+proj.file-list = [loc('cui4abstracts.py'),
+                  loc('cui4charms.py'),
+                  loc('cui4classes.py'),
+                  loc('cui4colors.py'),
+                  loc('cui4cursor.py'),
+                  loc('cui4keycatch.py'),
+                  loc('cui4pacer0.py'),
+                  loc('cui4sandbox.py')]
+proj.file-type = 'shared'

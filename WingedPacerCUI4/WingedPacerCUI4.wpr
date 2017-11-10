@@ -13,3 +13,4 @@ proj.file-list = [loc('cui4abstracts.py'),
                   loc('cui4pacer0.py'),
                   loc('cui4sandbox.py')]
 proj.file-type = 'shared'
+proj.main-file = loc('cui4sandbox.py')

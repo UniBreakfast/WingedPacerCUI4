@@ -2,7 +2,7 @@
 # импортирую функцию для быстрого преобразования
 # двухмерной последовательности в одномерную
 from itertools import chain
-
+from math      import sqrt
 
 # импортирую свои модули для работы с цветами и позиционирования курсора в консоли
 from cui4colors import *
@@ -24,7 +24,7 @@ H=MAX_HEIGHT = 50;     W=MAX_WIDTH = 80
 # Класс посимвольных карт изображения (прямоугольников) для консольного интерфейса
 # Кайждая символьная карта может быть измененеа в памяти и затем выведена на экран
 class CharMap(list):
-    
+
     # Символьная карта может быть создана несколькими вариантами:
     # - без параметров - прозрачный прямоугольник предполагаемых размеров экрана
     # - с указанием заполнителя - надписи, которой он будет покрыт
@@ -38,30 +38,30 @@ class CharMap(list):
         self.w = width
         if not spacing_color: spacing_color = text_color
 
-        if not (spacing or vertical_spacing or horizontal_spacing): 
+        if not (spacing or vertical_spacing or horizontal_spacing):
             no_spacing = True
-        else: 
+        else:
             no_spacing = False
 
         if not filler:
             charmap = [[(None, None, None)]*width for row in range(height)]
 
         elif len(filler)==1 and no_spacing:
-            charmap = [[(background_color, text_color, filler)]*width 
+            charmap = [[(background_color, text_color, filler)]*width
                        for row in range(height)]
 
         elif len(filler)>1 and no_spacing:
             charmap = CharMap(height, width)
             for row in range(height):
                 for pattern in range(0, width, len(filler)):
-                    charmap.inscribe(filler, row, pattern, 
+                    charmap.inscribe(filler, row, pattern,
                                      background_color, text_color, 'crop')
-        else: 
+        else:
             charmap = CharMap(height, width, spacing, background_color, spacing_color)
             for row in range(vertical_spacing, height, vertical_spacing+1):
                 for pattern in range(horizontal_spacing, width, len(filler)+
                                      horizontal_spacing):
-                    charmap.inscribe(filler, row, pattern, 
+                    charmap.inscribe(filler, row, pattern,
                                      background_color, text_color, 'skip')
 
 
@@ -118,7 +118,7 @@ class CharMap(list):
                     elif exceeds == 'wrap': y+=1; x=0-i
                     elif exceeds == 'indent': y+=1; x=position_x-i
                     self[y][x+i] = (b_col, self[y][x+i][1], char)
-                
+
         elif text_color:
             for i, char in enumerate(text):
                 try:
@@ -147,18 +147,18 @@ class CharMap(list):
     def stamp(self, charmap, position_y=0, position_x=0,
               exceeds=('crop', 'extend', 'fit', 'skip')):
         y=position_y; x=position_x
-        
+
         if exceeds == 'fit':
             if y+charmap.h > self.h and charmap.h <= self.h:
                y = self.h - charmap.h
             if x+charmap.w > self.w and charmap.w <= self.w:
                x = self.w - charmap.w
 
-        elif exceeds == 'skip' and (y+charmap.h>self.h or x+charmap.w>self.w): 
+        elif exceeds == 'skip' and (y+charmap.h>self.h or x+charmap.w>self.w):
             return self
 
         elif exceeds == 'extend':
-            extended_self = CharMap(y+charmap.h, x+charmap.w)
+            extended_self = CharMap(max(y+charmap.h, self.h), max(x+charmap.w, self.w))
             extended_self.stamp(self)
             extended_self.stamp(charmap, y, x)
             self.clear()
@@ -199,7 +199,7 @@ class CharMap(list):
     # Левым верхним углом оставшейся части будет символ с указанными координатами
     def crop(self, new_height=None, new_width=None, position_y=0, position_x=0):
         y=position_y;   x=position_x
-        
+
         new_height = new_height if new_height else self.h-y
         new_width  = new_width  if new_width  else self.w-x
 
@@ -236,6 +236,7 @@ class CharMap(list):
         extended_charm.stamp(self, y, x)
         self.clear()
         self+=extended_charm
+        self.h = len(self);     self.w = len(self[0])
         return self
 
 
@@ -249,9 +250,10 @@ class CharMap(list):
         extended_charm.stamp(self, top, left)
         self.clear()
         self+=extended_charm
+        self.h = len(self);     self.w = len(self[0])
         return self
 
-        
+
     # Метод выводит карту в консоль поверх того, что уже выведено, в указанном месте
     # или в начале, если место не указано. Позиционирование вывода может быть
     # относительно начала следующей строки за позицией курсора.
@@ -262,12 +264,12 @@ class CharMap(list):
         if y or x:
             preshow = CharMap(y+self.h, x+self.w)
             preshow.stamp(self, y, x)
-        
+
         if preshow.w<W:
             extended_preshow = CharMap(preshow.h, W)
             extended_preshow.stamp(preshow)
             preshow = extended_preshow
-        
+
         if preshow.h<H:
             extended_preshow = CharMap(H, preshow.w)
             extended_preshow.stamp(preshow)
@@ -289,14 +291,14 @@ class CharMap(list):
                 else:
                     first_match=True
         char_list=[]
-        
+
         right=0; down=0; cur_x=0
         for char in linear:
-            
+
             if char[0] is None:
                 if   right<W-1-cur_x: right+=1
                 else: down+=1; right=0; cur_x=0
-            else: 
+            else:
                 charstring = (d(down)+'\r')*bool(down)+r(right)*bool(right)+''.join(char)
                 cur_x = cur_x+right+1
                 if cur_x==80: cur_x=0
@@ -305,25 +307,25 @@ class CharMap(list):
 
         if not relative: curto()
         else: print()
-        
+
         print(end=''.join(char_list))
-        
+
 
     # Метод выводит карту в консоль полноэкранным кадром, замещая прежний вывод
     # Карта может быть выведена в указанном месте экрана.
     def show_instead(self, position_y=0, position_x=0):
         y=position_y;   x=position_x
-        
+
         preshow = self
         if y or x:
             preshow = CharMap(y+self.h, x+self.w)
             preshow.stamp(self, y, x)
-        
+
         if preshow.w<W:
             extended_preshow = CharMap(preshow.h, W)
             extended_preshow.stamp(preshow)
             preshow = extended_preshow
-        
+
         if preshow.h<H:
             extended_preshow = CharMap(H, preshow.w)
             extended_preshow.stamp(preshow)
@@ -350,14 +352,14 @@ class CharMap(list):
             charstring = ''.join((cell for cell in char if not cell is None))
             if charstring:
                 first_None=True
-            elif first_None: 
+            elif first_None:
                 charstring = RC+' '
                 first_None=False
             else: charstring = ' '
             char_list.append(charstring)
-        
+
         del char_list[-1]
-        
+
         curto()
         print(end=''.join(char_list))
         curto()
@@ -368,9 +370,64 @@ class CharMap(list):
         self.show_instead(position_y, position_x)
 
 
+    # Метод ищет ближайшее подходящее свободное место вокруг точки отсчёта
+    #
+    def nearby(self, c_board_y, c_board_x, c_board_h, c_board_w,
+                                                n_board_h, n_board_w):
+        copy = self.copy()
+        copy.extend_edge(n_board_h, n_board_h, n_board_w, n_board_w)
+        faked = copy.copy()
+        fake_y = c_board_y + 1
+        fake_x = c_board_x + 1
+        fake_h = c_board_h + n_board_h - 1
+        fake_w = c_board_w + n_board_w - 1
+        center_f_y = fake_y + fake_h/2 - 0.5
+        center_f_x = fake_x + fake_w/2 - 0.5
+        faked.stamp(CharMap(fake_h, fake_w, ' ', LR_), fake_y, fake_x)
+        list_of_empty_spots = []
+        for y in range(faked.h):
+            for x in range(faked.w):
+                if faked[y][x][2] is None:
+                    distance = sqrt(abs((center_f_y-y)*4)**2+abs((center_f_x-x)*3)**2)
+                    if y < center_f_y: 	  distance += 0.0001
+                    if x < center_f_x: 	  distance += 0.0001
+                    list_of_empty_spots.append((distance, y, x))
+        #return sorted(list_of_empty_spots)
+        list_of_empty_spots.sort()
+
+        for spot in list_of_empty_spots:
+            break_ = False
+            for y in range(n_board_h):
+                for x in range(n_board_w):
+                    if copy[spot[1]+y][spot[2]+x][2]:    break_ = True;     break
+                if break_:    break
+            if not break_:    return (spot[1]-n_board_h, spot[2]-n_board_w)
+
 
 ####   участок для тестирования   ####################################################
 
 if __name__ == '__main__':
-    pass
+    yellow = CharMap(5, 7, ' ', OL_)
+    blue = CharMap(6, 7, ' ', NV_)
+    red = CharMap(12, 7, ' ', MR_)
+    green = CharMap(8, 24, ' ', LR_)
+    cm = CharMap(22, 24)
+    cm.stamp(yellow, 9, 12, 'extend')
+    cm.stamp(blue, 5, 5, 'extend')
+    cm.stamp(red, 0, 16, 'extend')
+    cm.stamp(green, 14, 0, 'extend')
+    ocm = cm.copy()
+    sv = CharMap(4, 8,' ', SV_)
+
+    #cm()
+    #spots = cm.find_a_spot(5, 5, 6, 7, sv.h, sv.w)
+    #for spot in spots:
+        #cm.inscribe('x', spot[1]-sv.h, spot[2]-sv.w, RC)
+        #cm()
+        #input()
+
+    spot = cm.nearby(5, 5, 6, 7, sv.h, sv.w)
+    ocm.stamp(sv, spot[0], spot[1], 'extend')()
+
+
 

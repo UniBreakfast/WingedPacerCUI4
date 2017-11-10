@@ -3,15 +3,16 @@ from cui4charms    import *
 from cui4abstracts import *
 from cui4keycatch  import *
 
-class Control(Rectangle, SelfAware): 
+class Control(Rectangle, SelfAware):
     def __init__(self, nametag, height, width):
         Rectangle.__init__(self, height, width)
         SelfAware.__init__(self, nametag)
-        self.vps = []
-        self.avp = None
-        self.brds = []
-        self.sbrd = None
-        self.vp_mode = False
+        self.vps = []           # все вьюпорты
+        self.brds = []          # все доски
+        ViewPort(self)          # вьюпорт по умолчанию
+        self.avp = self.vps[0]  # активный вьюпорт
+        self.sbrd = None        # стартовая доска
+        self.vp_mode = False    # режим управлению активным вьюпортом
 
         def switch_mode():
             if self.avp.brd_mode: self.avp('F4')
@@ -33,8 +34,6 @@ class Control(Rectangle, SelfAware):
 
 
     def __call__(self):
-        if not self.vps: ViewPort(self)
-        self.avp = self.vps[0]
         self.avp()
         while True:
             if self.vp_mode: own_keys = self.mode_keys
@@ -45,7 +44,7 @@ class Control(Rectangle, SelfAware):
                 if type(own_keys[key]) is tuple:
                     own_keys[key][0] ( own_keys[key][1] )
                 else: own_keys[key] ()
-            else: 
+            else:
                 self.vp_keys = self.avp(key)
             self.avp()
 
@@ -77,23 +76,23 @@ class ViewPort(Rectangle, SelfAware):
                 ' Enter ', 48, 0, None, YL)
             self.redraw = True
             self.brd_mode = not self.brd_mode
-        
+
         #TODO Сделать, чтобы доски двигались не дальше символа от существующих
         def up():
             self.abrd.pos_y -= 1
             self.abrd.layer.redraw = True
             for viewport in self.c.vps: viewport.redraw = True
-        
+
         def down():
             self.abrd.pos_y += 1
             self.abrd.layer.redraw = True
             for viewport in self.c.vps: viewport.redraw = True
-        
+
         def right():
             self.abrd.pos_x += 1
             self.abrd.layer.redraw = True
             for viewport in self.c.vps: viewport.redraw = True
-        
+
         def left():
             self.abrd.pos_x -= 1
             self.abrd.layer.redraw = True
@@ -117,7 +116,7 @@ class ViewPort(Rectangle, SelfAware):
 
 
     def __call__(self, key=None):
-        if key:  
+        if key:
             self.do(key)
             if self.brd_mode: return list(self.mode_keys) + self.brd_keys
             else:             return list(self.own_keys)  + self.brd_keys
@@ -129,7 +128,7 @@ class ViewPort(Rectangle, SelfAware):
             if type(own_keys[key]) is tuple:
                 own_keys[key][0] ( own_keys[key][1] )
             else: own_keys[key] ()
-        else: 
+        else:
             self.brd_keys = self.abrd(key)
 
     def show(self):
@@ -151,26 +150,38 @@ class ViewPort(Rectangle, SelfAware):
 ########################################################################################
 
 class Board(Rectangle, SelfAware):
-    def __init__(self, control, height=10, width=30, position_y=None, position_x=None,
-                 background_color=None, text_color=None, name=None):
-        if position_y is None: position_y = control.h//2-height//2 
-        if position_x is None: position_x = control.w//2-width//2 
+    def __init__(self, control, height=10, width=30, background_color=None,
+                 text_color=None, name=None, title=None, centered=False):
+        if not len(control.brds) or centered:
+            position_y = control.avp.h//2 - height//2 + control.avp.pos_y
+            position_x = control.avp.w//2 -  width//2 + control.avp.pos_x
+        else:
+            mask = CharMap(control.h, control.w)
+            for board in control.brds:
+                mask.stamp(board.layer())
+            position_y, position_x = mask.nearby(control.avp.abrd.pos_y,
+                control.avp.abrd.pos_x, control.avp.abrd.h, control.avp.abrd.w,
+                height, width)
+
         Rectangle.__init__(self, height, width, position_y, position_x, control,
                            None, None, background_color, text_color)
         SelfAware.__init__(self, name)
+
+
         control.brds.append(self)
         for viewport in control.vps:
             if not viewport.abrd: viewport.abrd = self
         self.c = control
         self.own_keys = {}
+
         self.layer = Layer(self)
         self.redraw = True
-        
+
         #TODO Сделать, чтобы новые доски появлялись либо в центре, либо в нужном месте
         #TODO рядом с текущей
 
     def __call__(self, key=None):
-        if key:  
+        if key:
             self.do(key)
             return list(self.own_keys)
         else:    return self.render()
@@ -195,6 +206,9 @@ class Layer(Rectangle, SelfAware):
         SelfAware.__init__(self, 'layer for '+board.nametag)
         self.b = board
         self.redraw = True
+        # будучи созданным, слой добавляет себя во все вьюпорты
+        for vieport in board.c.vps:
+            vieport.layers.append(self)
 
     def __call__(self):
         if self.redraw:

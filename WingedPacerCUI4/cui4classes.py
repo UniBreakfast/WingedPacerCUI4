@@ -50,6 +50,26 @@ class Control(Rectangle, SelfAware):
 
     def change_keys(set): pass
 
+    def resize(self, side=('up','down','left','right'), amount=1):
+        if side == 'up':
+            self.h += amount
+            for each in self.vps + self.brds:
+                each.pos_y += amount
+                if type(each) is Board:    each.layer.redraw = True
+        elif side == 'down':
+            self.h += amount
+            for each in self.brds:    each.layer.redraw = True
+        elif side == 'left':
+            self.w += amount
+            for each in self.vps + self.brds:
+                each.pos_x += amount
+                if type(each) is Board:    each.layer.redraw = True
+        elif side == 'right':
+            self.w += amount
+            for each in self.brds:    each.layer.redraw = True
+
+
+
 ########################################################################################
 
 class ViewPort(Rectangle, SelfAware):
@@ -77,27 +97,6 @@ class ViewPort(Rectangle, SelfAware):
             self.redraw = True
             self.brd_mode = not self.brd_mode
 
-        #TODO Сделать, чтобы доски двигались не дальше символа от существующих
-        def up():
-            self.abrd.pos_y -= 1
-            self.abrd.layer.redraw = True
-            for viewport in self.c.vps: viewport.redraw = True
-
-        def down():
-            self.abrd.pos_y += 1
-            self.abrd.layer.redraw = True
-            for viewport in self.c.vps: viewport.redraw = True
-
-        def right():
-            self.abrd.pos_x += 1
-            self.abrd.layer.redraw = True
-            for viewport in self.c.vps: viewport.redraw = True
-
-        def left():
-            self.abrd.pos_x -= 1
-            self.abrd.layer.redraw = True
-            for viewport in self.c.vps: viewport.redraw = True
-
         def next():
             current = self.brds.index(self.abrd)
             if self.brds.index(self.abrd):
@@ -109,7 +108,8 @@ class ViewPort(Rectangle, SelfAware):
         self.brd_keys = []
         self.own_keys = {'F4': switch_mode, 'F2': (print, '\a')}
         self.mode_keys = {'Tab': next, 'Ctrl+Tab': (),
-                          'Left': left, 'Right': right, 'Up': up, 'Down': down,
+                          'Left': (self.move, 'left'), 'Right': (self.move, 'right'),
+                          'Up': (self.move, 'up'), 'Down': (self.move, 'down'),
                           'F4': switch_mode, 'Esc': switch_mode, 'Enter': switch_mode,
                           'F2': ()}
 
@@ -135,8 +135,12 @@ class ViewPort(Rectangle, SelfAware):
         if self.redraw:
             self.frame = CharMap(self.h, self.w).stamp(self.overlay)
             for layer in self.layers:
-               self.frame = self.frame.view_through(layer(),self.pos_y,self.pos_x)
-            self.frame = self.frame.view_through(self.underlay,self.pos_y,self.pos_x)
+                self.frame = self.frame.view_through(layer(),self.pos_y,self.pos_x)
+            try: self.frame = self.frame.view_through(self.underlay,self.pos_y,self.pos_x)
+            except:
+                self.underlay = CharMap(self.c.h, self.c.w, str(self.c.vps.index(self)+1),
+                                        BK_, GR, ' ', 4, 7)
+                self.frame = self.frame.view_through(self.underlay,self.pos_y,self.pos_x)
 
             #self.frame = CharMap(self.c.h, self.c.w)
             #self.frame.stamp(self.underlay)
@@ -147,6 +151,32 @@ class ViewPort(Rectangle, SelfAware):
             self.redraw = False
         self.frame()
 
+    def move(self, side=('up','down','left','right'), amount=1):
+        if side == 'up':
+            self.abrd.pos_y -= amount
+            if self.abrd.pos_y < 0:
+                shift = 0-self.abrd.pos_y
+                self.c.resize('up', shift);    self.abrd.pos_y = 0
+            self.abrd.layer.redraw = True
+            for viewport in self.c.vps: viewport.redraw = True
+        elif side == 'down':
+            self.abrd.pos_y += amount
+            if self.abrd.pos_y + amount + self.abrd.h >= self.c.h:
+                self.c.resize('down', self.abrd.pos_y + amount + self.abrd.h - self.c.h)
+            self.abrd.layer.redraw = True
+            for viewport in self.c.vps: viewport.redraw = True
+        elif side == 'left':
+            self.abrd.pos_x -= amount
+            if self.abrd.pos_x < 0:
+                self.c.resize('left', -self.abrd.pos_x);    self.abrd.pos_x = 0
+            self.abrd.layer.redraw = True
+            for viewport in self.c.vps: viewport.redraw = True
+        elif side == 'right':
+            self.abrd.pos_x += amount
+            if self.abrd.pos_x + amount + self.abrd.w >= self.c.w:
+                self.c.resize('right', self.abrd.pos_x + amount + self.abrd.w - self.c.w)
+            self.abrd.layer.redraw = True
+            for viewport in self.c.vps: viewport.redraw = True
 ########################################################################################
 
 class Board(Rectangle, SelfAware):
@@ -162,11 +192,18 @@ class Board(Rectangle, SelfAware):
             position_y, position_x = mask.nearby(control.avp.abrd.pos_y,
                 control.avp.abrd.pos_x, control.avp.abrd.h, control.avp.abrd.w,
                 height, width)
+            if position_y < 0:
+                control.resize('up', -position_y);   position_y = 0
+            if position_x < 0:
+                control.resize('left', -position_x); position_x = 0
+            if position_y + height > control.h:
+                control.resize('down', position_y + height - control.h)
+            if position_x + width > control.w:
+                control.resize('right', position_x + width - control.w)
 
         Rectangle.__init__(self, height, width, position_y, position_x, control,
                            None, None, background_color, text_color)
         SelfAware.__init__(self, name)
-
 
         control.brds.append(self)
         for viewport in control.vps:
@@ -212,6 +249,7 @@ class Layer(Rectangle, SelfAware):
 
     def __call__(self):
         if self.redraw:
+            self.h = self.b.c.h;    self.w = self.b.c.w
             self.frame = CharMap(self.h, self.w)
             self.frame.stamp(self.b(), self.b.pos_y, self.b.pos_x)
             self.redraw = False
